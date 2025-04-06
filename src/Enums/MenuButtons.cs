@@ -3,6 +3,7 @@
 public enum MenuButtons : ulong
 {
     Select = (1 << 1),
+    Use = (1 << 5),
     Back = (1 << 2),
     Up = (1 << 3),
     Down = (1 << 4),

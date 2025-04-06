@@ -46,9 +46,11 @@ public class Menu
 
             if (menu.AcceptButtons)
             {
+                //Console.WriteLine(buttons);
                 switch (buttons)
                 {
                     case MenuButtons.Select:
+                    case MenuButtons.Use:
                         if (selectedItem == null)
                             break;
 
