@@ -39,6 +39,7 @@ public class Menu
             // 阶段1：基础有效性验证
             if (controller == null)
             {
+                Menus.Remove(slot);
                 continue;
             }
 
