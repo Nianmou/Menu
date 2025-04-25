@@ -1,11 +1,12 @@
-﻿using CounterStrikeSharp.API.Core;
+﻿using CounterStrikeSharp.API;
+using CounterStrikeSharp.API.Core;
 using Menu.Enums;
 
 namespace Menu;
 
 public class Menu
 {
-    private static readonly Dictionary<CCSPlayerController, Stack<MenuBase>> Menus = [];
+    private static readonly Dictionary<int, Stack<MenuBase>> Menus = [];
     private static readonly SayEvent OnSay = new("say", OnSayEvent);
     private static readonly SayEvent OnSayTeam = new("say_team", OnSayEvent);
     private static readonly OnTick OnTick = new(OnTickListener);
@@ -13,7 +14,7 @@ public class Menu
 
     private static HookResult OnSayEvent(CCSPlayerController? controller, string message)
     {
-        if (controller == null || !controller.IsValid || !Menus.TryGetValue(controller, out var value))
+        if (controller == null || !controller.IsValid || !Menus.TryGetValue(controller.Slot, out var value))
             return HookResult.Continue;
 
         var menu = value.Peek();
@@ -31,11 +32,26 @@ public class Menu
 
     private static void OnTickListener()
     {
-        foreach (var (controller, menus) in Menus)
+        foreach (var (slot, menus) in Menus.ToArray())
         {
-            if (!controller.IsValid || menus.Count == 0)
+            var controller = Utilities.GetPlayerFromSlot(slot);
+
+            // 阶段1：基础有效性验证
+            if (controller == null)
             {
-                Menus.Remove(controller);
+                continue;
+            }
+
+            // 实时有效性二次验证（防止异步失效）
+            if (!controller.IsValid)
+            {
+                Menus.Remove(slot);
+                continue;
+            }
+
+            if (menus.Count == 0)
+            {
+                Menus.Remove(slot);
                 continue;
             }
 
@@ -139,7 +155,7 @@ public class Menu
 
                     case MenuButtons.Exit:
                         menu.Callback?.Invoke(buttons, menu, null);
-                        Menus.Remove(controller);
+                        Menus.Remove(slot);
                         continue;
                 }
 
@@ -148,7 +164,7 @@ public class Menu
             }
 
             menu.AcceptButtons = buttons == 0;
-            DrawMenu(controller, menu, selectedItem);
+            DrawMenu(slot, menu, selectedItem);
             RaiseDrawMenu(controller, menu, selectedItem);
         }
     }
@@ -158,11 +174,17 @@ public class Menu
         OnDrawMenu?.Invoke(null, new MenuEvent(controller, menu, selectedItem));
     }
 
-    public static void DrawMenu(CCSPlayerController controller, MenuBase menu, MenuItem? selectedItem)
+    public static void DrawMenu(int slot, MenuBase menu, MenuItem? selectedItem)
     {
+        var controller = Utilities.GetPlayerFromSlot(slot);
+        if (controller == null || !controller.IsValid)
+        {
+            return;
+        }
+
         var html = "";
 
-        if (!Menus.TryGetValue(controller, out var menus))
+        if (!Menus.TryGetValue(slot, out var menus))
             return;
 
         if (menus.Count > 1)
@@ -327,33 +349,33 @@ public class Menu
         return menuItem.Data[0] == 0 ? menu.Bool[(int)MenuBool.False].ToString() : menu.Bool[(int)MenuBool.True].ToString();
     }
 
-    public void SetMenu(CCSPlayerController controller, MenuBase menu, Action<MenuButtons, MenuBase, MenuItem?> callback)
+    public void SetMenu(int slot, MenuBase menu, Action<MenuButtons, MenuBase, MenuItem?> callback)
     {
-        if (!Menus.ContainsKey(controller))
-            Menus.Add(controller, new Stack<MenuBase>());
+        if (!Menus.ContainsKey(slot))
+            Menus.Add(slot, new Stack<MenuBase>());
 
         menu.Callback = callback;
-        Menus[controller].Clear();
-        Menus[controller].Push(menu);
+        Menus[slot].Clear();
+        Menus[slot].Push(menu);
     }
 
-    public void AddMenu(CCSPlayerController controller, MenuBase menu, Action<MenuButtons, MenuBase, MenuItem?> callback)
+    public void AddMenu(int slot, MenuBase menu, Action<MenuButtons, MenuBase, MenuItem?> callback)
     {
-        if (!Menus.ContainsKey(controller))
-            Menus.Add(controller, new Stack<MenuBase>());
+        if (!Menus.ContainsKey(slot))
+            Menus.Add(slot, new Stack<MenuBase>());
 
         menu.Callback = callback;
-        Menus[controller].Push(menu);
+        Menus[slot].Push(menu);
     }
 
-    public void ClearMenus(CCSPlayerController controller)
+    public void ClearMenus(int slot)
     {
-        Menus.Remove(controller);
+        Menus.Remove(slot);
     }
 
-    public void PopMenu(CCSPlayerController controller, MenuBase? menu = null)
+    public void PopMenu(int slot, MenuBase? menu = null)
     {
-        if (!Menus.TryGetValue(controller, out var value))
+        if (!Menus.TryGetValue(slot, out var value))
             return;
 
         if (menu != null && value.Peek() != menu)
@@ -362,9 +384,9 @@ public class Menu
         value.Pop();
     }
 
-    public bool IsCurrentMenu(CCSPlayerController controller, MenuBase menu)
+    public bool IsCurrentMenu(int slot, MenuBase menu)
     {
-        if (!Menus.TryGetValue(controller, out var value))
+        if (!Menus.TryGetValue(slot, out var value))
             return false;
 
         return value.Peek() == menu;
