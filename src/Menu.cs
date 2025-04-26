@@ -42,9 +42,32 @@ public class Menu
                 Menus.Remove(slot);
                 continue;
             }
-
             // 实时有效性二次验证（防止异步失效）
             if (!controller.IsValid)
+            {
+                Menus.Remove(slot);
+                continue;
+            }
+            // 实时有效性二次验证（防止异步失效）
+            if (controller.Pawn.Value == null)
+            {
+                Menus.Remove(slot);
+                continue;
+            }
+            // 实时有效性二次验证（防止异步失效）
+            if (!controller.Pawn.IsValid)
+            {
+                Menus.Remove(slot);
+                continue;
+            }
+            // 检查移动服务是否为空
+            if (controller.Pawn.Value.MovementServices == null)
+            {
+                Menus.Remove(slot);
+                continue;
+            }
+            // 检查按键是否为空
+            if (controller.Pawn.Value.MovementServices.Buttons == null)
             {
                 Menus.Remove(slot);
                 continue;
